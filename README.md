@@ -1,123 +1,118 @@
-# Edge Detector 
-# Verilog FSM Digital Design Library: Switch Debouncer & Edge Detector Suite
+# Verilog FSM Edge Detector Suite
 
-A comprehensive Verilog HDL library implementing essential Finite State Machine (FSM) building blocks for FPGA and ASIC designs. This collection includes a parameterized mechanical switch debouncing circuit and a complete suite of 6 FSM edge detectors (Moore and Mealy architectures for rising, falling, and dual-edge detection).
+A complete Verilog HDL design suite implementing Finite State Machine (FSM) based edge detectors. An edge detector monitors an incoming signal (`IN`) and generates a single-clock-cycle strobe pulse (`Tic`) whenever a valid signal transition occurs.
 
----
-
-## 1. Module Architecture Overview
-
-### A. Switch Debouncing Circuit (`Debouncing_Circuit.v`)
-Mechanical switches and pushbuttons suffer from contact bounce, generating high-frequency electrical noise during state changes. The debouncing circuit uses a parameterized modulo-N counter combined with an 8-state finite state machine to filter out glitches and output a clean, stable digital signal.
-
-* **Parameterized Filtering**: Set via parameter `tic` (default: `10`) to control sampling duration.
-* **Stable Output**: Output signal `db` only transitions after the raw switch input (`SW`) remains unchanged across 3 consecutive sampling strobe intervals (`m_tic`).
-
-```
-               +------------------------------------------------------+
-               |                  Debouncing_Circuit                  |
-               |                                                      |
- [CLK] ------->| [Modulo-N Counter] ---> m_tic                        |
- [RST] --------+-----> [FSM Control Logic] <--- SW                     |
-               |             |                                        |
-               |             +--------------------------------------> db
-               +------------------------------------------------------+
-```
-
-### B. Edge Detector Suite (`Edge_Detector_*.v`)
-Edge detectors generate a single-clock-cycle strobe pulse (`Tic`) whenever a specified transition occurs on an input signal (`IN`). This repository implements all variations across two primary FSM architectures:
-
-1. **Moore Architecture**: Output pulse (`Tic_Moore`) depends purely on current state. Provides synchronous, glitch-free outputs with 1 clock cycle of transition latency. Uses 3 states (`s0`, `s1`, `s2`).
-2. **Mealy Architecture**: Output pulse (`Tic_Mealy`) depends combinationally on current state and input signal (`IN`). Provides immediate zero-latency pulse assertion upon edge detection. Uses 2 states (`s0`, `s1`).
+This repository covers all six standard variations across two fundamental state machine architectures—**Moore** and **Mealy**—for **Rising Edge**, **Falling Edge**, and **Dual-Edge (Rising & Falling)** detection.
 
 ---
 
-## 2. Inventory of Modules & Files
+## Architecture & Trade-Off Analysis
 
-| Module Name | Module Type | Key Functionality / Detection Type | RTL File | Testbench File | Waveform Image |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `Debouncing_Circuit` | FSM + Counter | Parameterized Mechanical Noise Filter | `rtl/Debouncing_Circuit.v` | `tb/Debouncing_Circuit_TB.v` | `docs/Wave form.png` |
-| `Edge_Detector_Moore_Rising` | Moore FSM | Single-cycle pulse on Rising Edge (0 $
-ightarrow$ 1) | `rtl/Edge_Detector_Moore_Rising.v` | `tb/Edge_Detector_Moore_Rising_TB.v` | `docs/edge_detector_moore_rising.png` |
-| `Edge_Detector_Moore_Falling` | Moore FSM | Single-cycle pulse on Falling Edge (1 $
-ightarrow$ 0) | `rtl/Edge_Detector_Moore_Falling.v` | `tb/Edge_Detector_Moore_Falling_TB.v` | `docs/edge_detector_moore_Falling.png` |
-| `Edge_Detector_Moore_Rising_Falling` | Moore FSM | Single-cycle pulse on Both Edges | `rtl/Edge_Detector_Moore_Rising_Falling .v` | `tb/Edge_Detector_Moore_Rising_Falling _TB.v` | `docs/Edge_Detector_Moore_Rising_Falling.png` |
-| `Edge_Detector_Mealy_Rising` | Mealy FSM | Zero-latency pulse on Rising Edge (0 $
-ightarrow$ 1) | `rtl/Edge_Detector_Mealy_Rising.v` | `tb/Edge_Detector_Mealy_Rising_TB.v` | `docs/Edge_Detector_Mealy_Rising.png` |
-| `Edge_Detector_Mealy_Falling` | Mealy FSM | Zero-latency pulse on Falling Edge (1 $
-ightarrow$ 0) | `rtl/Edge_Detector_Mealy_Falling.v` | `tb/Edge_Detector_Mealy_Falling_TB.v` | `docs/Edge_Detector_Mealy_Falling.png` |
-| `Edge_Detector_Mealy_Rising_Falling` | Mealy FSM | Zero-latency pulse on Both Edges | `rtl/Edge_Detector_Mealy_Rising _Falling.v` | `tb/Edge_Detector_Mealy_Rising _Falling _TB.v` | `docs/Edge_Detector_Mealy_Rising _Falling.png` |
+| Feature | Moore FSM Architecture | Mealy FSM Architecture |
+| :--- | :--- | :--- |
+| **Output Dependency** | Purely depends on current state | Depends on current state AND input `IN` |
+| **Output Latency** | 1 clock cycle delay | 0 clock cycles (Immediate assertion) |
+| **Glitch Immunity** | High (Output is synchronous with `CLK`) | Sensitive to asynchronous input glitches |
+| **State Complexity** | Requires **3 states** (`s0`, `s1`, `s2`) | Requires **2 states** (`s0`, `s1`) |
 
 ---
 
-## 3. Directory Layout
+## Detailed Module Inventory
 
-Recommended directory structure for uploading to GitHub:
+### 1. Rising Edge Detectors (0 → 1 Transition)
+
+* **`Edge_Detector_Moore_Rising.v`**
+  * **Type**: Moore FSM
+  * **Behavior**: Detects a low-to-high transition on `IN`. The output pulse `Tic_Moore` is asserted for 1 clock cycle starting on the clock edge immediately *after* the transition.
+  * **States**: `s0` (Zero / Idle), `s1` (Edge Detected / Pulse Active), `s2` (One / Hold).
+
+* **`Edge_Detector_Mealy_Rising.v`**
+  * **Type**: Mealy FSM
+  * **Behavior**: Detects a low-to-high transition on `IN`. The output pulse `Tic_Mealy` asserts asynchronously the moment `IN` goes high while in state `s0`, and clears on the next clock edge.
+  * **States**: `s0` (Zero / Idle), `s1` (One / Hold).
+
+---
+
+### 2. Falling Edge Detectors (1 → 0 Transition)
+
+* **`Edge_Detector_Moore_Falling.v`**
+  * **Type**: Moore FSM
+  * **Behavior**: Detects a high-to-low transition on `IN`. The output pulse `Tic_Moore` is asserted for 1 clock cycle on the clock edge after `IN` drops to 0.
+  * **States**: `s0` (One / Idle), `s1` (Edge Detected / Pulse Active), `s2` (Zero / Hold).
+
+* **`Edge_Detector_Mealy_Falling.v`**
+  * **Type**: Mealy FSM
+  * **Behavior**: Detects a high-to-low transition on `IN`. Output `Tic_Mealy` asserts immediately when `IN == 0` while in state `s0`.
+  * **States**: `s0` (One / Idle), `s1` (Zero / Hold).
+
+---
+
+### 3. Dual-Edge Detectors (0 → 1 AND 1 → 0 Transitions)
+
+* **`Edge_Detector_Moore_Rising_Falling.v`**
+  * **Type**: Moore FSM
+  * **Behavior**: Generates a 1-cycle `Tic_Moore` pulse whenever `IN` changes state in either direction.
+  * **States**: 
+    * `s0`: Steady LOW state (or initial state).
+    * `s1`: Pulse assertion state (asserts `Tic_Moore = 1`).
+    * `s2`: Steady HIGH state.
+
+* **`Edge_Detector_Mealy_Rising_Falling.v`**
+  * **Type**: Mealy FSM
+  * **Behavior**: Generates an immediate `Tic_Mealy` pulse whenever `IN` toggles between 0 and 1.
+  * **States**: 
+    * `s0`: Tracks LOW input state.
+    * `s1`: Tracks HIGH input state.
+
+---
+
+## State Transition Tables
+
+### Moore Both-Edges (`Edge_Detector_Moore_Rising_Falling.v`)
+
+| Current State | Input (`IN`) | Next State | Output (`Tic_Moore`) | Description |
+| :---: | :---: | :---: | :---: | :--- |
+| `s0` | 0 | `s0` | `0` | Idle in LOW state |
+| `s0` | 1 | `s1` | `0` | Transition detected → Move to pulse state |
+| `s1` | 1 | `s2` | `1` | Assert pulse → Move to steady HIGH state |
+| `s1` | 0 | `s0` | `1` | Assert pulse → Input dropped back LOW |
+| `s2` | 1 | `s2` | `0` | Steady HIGH state |
+| `s2` | 0 | `s1` | `0` | Transition detected → Move to pulse state |
+
+### Mealy Both-Edges (`Edge_Detector_Mealy_Rising_Falling.v`)
+
+| Current State | Input (`IN`) | Next State | Output (`Tic_Mealy`) | Description |
+| :---: | :---: | :---: | :---: | :--- |
+| `s0` | 0 | `s0` | `0` | Idle in LOW state |
+| `s0` | 1 | `s1` | `1` | Rising edge detected → Immediate pulse |
+| `s1` | 1 | `s1` | `0` | Steady HIGH state |
+| `s1` | 0 | `s0` | `1` | Falling edge detected → Immediate pulse |
+
+---
+
+## Repository Directory Structure
 
 ```text
 .
 ├── rtl/
-│   ├── Debouncing_Circuit.v
 │   ├── Edge_Detector_Moore_Rising.v
 │   ├── Edge_Detector_Moore_Falling.v
-│   ├── Edge_Detector_Moore_Rising_Falling .v
+│   ├── Edge_Detector_Moore_Rising_Falling.v
 │   ├── Edge_Detector_Mealy_Rising.v
 │   ├── Edge_Detector_Mealy_Falling.v
-│   └── Edge_Detector_Mealy_Rising _Falling.v
+│   └── Edge_Detector_Mealy_Rising_Falling.v
 ├── tb/
-│   ├── Debouncing_Circuit_TB.v
 │   ├── Edge_Detector_Moore_Rising_TB.v
 │   ├── Edge_Detector_Moore_Falling_TB.v
-│   ├── Edge_Detector_Moore_Rising_Falling _TB.v
+│   ├── Edge_Detector_Moore_Rising_Falling_TB.v
 │   ├── Edge_Detector_Mealy_Rising_TB.v
 │   ├── Edge_Detector_Mealy_Falling_TB.v
-│   └── Edge_Detector_Mealy_Rising _Falling _TB.v
+│   └── Edge_Detector_Mealy_Rising_Falling_TB.v
 ├── docs/
-│   ├── Wave form.png
 │   ├── edge_detector_moore_rising.png
 │   ├── edge_detector_moore_Falling.png
 │   ├── Edge_Detector_Moore_Rising_Falling.png
 │   ├── Edge_Detector_Mealy_Rising.png
 │   ├── Edge_Detector_Mealy_Falling.png
-│   └── Edge_Detector_Mealy_Rising _Falling.png
+│   └── Edge_Detector_Mealy_Rising_Falling.png
 └── README.md
-```
-
----
-
-## 4. Module Interface Specifications
-
-### Debouncing Circuit (`Debouncing_Circuit.v`)
-* **Parameters**: `tic` (default: `10`) - Clock cycles per sampling strobe pulse.
-* **Inputs**: `CLK` (System Clock), `RST` (Async Active-Low Reset), `SW` (Raw switch input).
-* **Outputs**: `db` (Debounced output signal).
-
-### Edge Detectors (`Edge_Detector_*.v`)
-* **Inputs**: `CLK` (System Clock), `RST` (Async Active-Low Reset), `IN` (Input signal).
-* **Outputs**: `Tic_Moore` / `Tic_Mealy` (Single-clock-cycle pulse generated upon edge detection).
-
----
-
-## 5. Verification & Simulation Instructions
-
-All modules come with dedicated testbenches that inject noise/pulses and output VCD trace files (`.vcd`) for visual verification.
-
-### Simulation Steps (ModelSim / QuestaSim)
-
-1. **Compile All Modules**:
-   ```bash
-   vlib work
-   vlog rtl/*.v tb/*.v
-   ```
-
-2. **Simulate a Specific Testbench** (e.g., Switch Debouncer):
-   ```bash
-   vsim -c Debouncing_Circuit_TB -do "run -all; quit"
-   ```
-
-3. **Simulate Edge Detector Suite**:
-   ```bash
-   vsim -c Edge_Detector_TB -do "run -all; quit"
-   ```
-
-4. **View Output Waveforms**: Open generated `.vcd` files (`debouncing circuit.vcd` or `Edge Detector.vcd`) in GTKWave or ModelSim to verify state transitions and output timings against the provided waveform captures in `docs/`.

@@ -1,1 +1,1 @@
-# Digital_Design_Projects
+# Edge Detector 
